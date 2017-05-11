@@ -1,24 +1,14 @@
 # README
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+I used rvm as my ruby manager
 
-Things you may want to cover:
+rails 5.1
+ruby 2.4
+rspec 3.5
+redis ~3.2
 
-* Ruby version
+1. `$ brew install redis`
+2. `$ gem install bundler foreman`
+3. `$ bundle install `
+4. `$ foreman start`
 
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
