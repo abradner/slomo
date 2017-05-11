@@ -44,7 +44,6 @@ GEM
     byebug (9.0.6)
     coderay (1.1.1)
     concurrent-ruby (1.0.5)
-    dalli (2.7.6)
     diff-lcs (1.3)
     erubi (1.6.0)
     ffi (1.9.18)
@@ -75,7 +74,6 @@ GEM
     lumberjack (1.0.11)
     mail (2.6.5)
       mime-types (>= 1.16, < 4)
-    memcached (1.8.0)
     method_source (0.8.2)
     mime-types (3.1)
       mime-types-data (~> 3.2015)
@@ -204,14 +202,12 @@ PLATFORMS
 
 DEPENDENCIES
   byebug
-  dalli
   guard (~> 2.14)
   guard-rspec
   listen (>= 3.0.5, < 3.2)
-  memcached
   puma (~> 3.7)
   rails (~> 5.1.0)
-  redis-rails
+  redis-rails (~> 5.0)
   rspec-rails (~> 3.5)
   rubocop
   spring
