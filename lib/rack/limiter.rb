@@ -32,8 +32,37 @@ module Rack
     private
 
     def limited?(_request)
-      true
-    end
+      redis = Redis.new
+      request_time = Time.now
+
+      # Load existing requests or initialise a new array if none there
+      raw_requests = redis.get 'requests'
+
+      requests = raw_requests.present? ? JSON.parse(raw_requests) : []
+
+      # Trim anything older than the window (yay side effects)
+      requests.delete_if do |req|
+        DateTime.iso8601(req['timestamp']) < request_time - DEFAULT_WINDOW
+      end
+
+      # Count what's left and decide what to do
+      if requests.count >= LOAD_LIMIT # use >= because we're only counting existing requests.
+        # We've exceded our limit so we need to abort execution of the action
+        @oldest_request = DateTime.iso8601 requests.first['timestamp']
+        return true
+      else
+        # not limited so push req to redis and continue
+        this_req = {
+          timestamp: request_time, # when the request was made
+          action:    nil, # what was the request (can be used to filter by action)
+          source:    nil, # who made the request (can be used to filter by client)
+        }.stringify_keys
+
+        requests << this_req
+        redis.set 'requests', requests.to_json
+        return false
+      end
+  end
 
     def respond_limited(request)
       [
@@ -44,7 +73,8 @@ module Rack
     end
 
     def retry_time(_request)
-      0
+      # Work out how long we need to wait, rounding up
+      DEFAULT_WINDOW - (Time.now - @oldest_request).floor
     end
   end
 end
