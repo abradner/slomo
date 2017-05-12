@@ -4,18 +4,6 @@ require 'redis'
 require 'json'
 
 class HomeController < ApplicationController
-  DEFAULT_WINDOW = 1.hour
-  LOAD_LIMIT = 100
-
-  # Exporting these so they can be used in rspec before i properly refactor this
-  def self.DEFAULT_WINDOW
-    DEFAULT_WINDOW
-  end
-
-  def self.LOAD_LIMIT
-    LOAD_LIMIT
-  end
-
   before_action :check_rate
 
   def index
@@ -42,7 +30,7 @@ class HomeController < ApplicationController
     if requests.count >= LOAD_LIMIT # use >= because we're only counting existing requests.
       # We've exceded our limit so we need to abort execution of the action
 
-      #Work out how long we need to wait, rounding up
+      # Work out how long we need to wait, rounding up
       wait_required = DEFAULT_WINDOW - (Time.now - DateTime.iso8601(requests.first['timestamp'])).floor
       render json: "Rate limit exceeded. Try again in #{wait_required} seconds", status: 429
     else
