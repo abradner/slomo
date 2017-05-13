@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
-# require 'redis'
+require 'redis'
+
+require 'active_support/json' # the native ruby json library is broken
 require 'active_support/core_ext/numeric/time' # for convenience methods like 1.hour
+require 'active_support/core_ext/module/remove_method' # needed for date_time
+require 'active_support/core_ext/date_time' # advanced datetime
 
 module Rack
   class Limiter
@@ -33,7 +37,7 @@ module Rack
 
     def limited?(_request)
       redis = Redis.new
-      request_time = Time.now
+      request_time = DateTime.now
 
       # Load existing requests or initialise a new array if none there
       raw_requests = redis.get 'requests'
@@ -48,16 +52,15 @@ module Rack
       # Count what's left and decide what to do
       if requests.count >= LOAD_LIMIT # use >= because we're only counting existing requests.
         # We've exceded our limit so we need to abort execution of the action
-        @oldest_request = DateTime.iso8601 requests.first['timestamp']
+        @oldest_request = DateTime.iso8601(requests.first['timestamp'])
         return true
       else
         # not limited so push req to redis and continue
         this_req = {
-          timestamp: request_time, # when the request was made
+          timestamp: request_time.iso8601(3), # when the request was made
           action:    nil, # what was the request (can be used to filter by action)
           source:    nil, # who made the request (can be used to filter by client)
         }.stringify_keys
-
         requests << this_req
         redis.set 'requests', requests.to_json
         return false
@@ -74,7 +77,7 @@ module Rack
 
     def retry_time(_request)
       # Work out how long we need to wait, rounding up
-      DEFAULT_WINDOW - (Time.now - @oldest_request).floor
+      DEFAULT_WINDOW - (DateTime.now - @oldest_request).floor
     end
   end
 end

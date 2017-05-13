@@ -3,9 +3,7 @@
 require 'rack/test'
 require 'rack/limiter'
 
-# require 'rails_helper'
-# require 'time'
-require 'json'
+require 'active_support/json' # the native ruby json library is broken
 require 'redis'
 
 DEFAULT_WINDOW = Rack::Limiter.DEFAULT_WINDOW # 1.hour
@@ -24,22 +22,70 @@ describe Rack::Limiter do
     @redis.flushdb
   end
 
-  describe 'GET index' do
+  describe 'INTEGRATION' do
+    it "has a 200 status code and returns 'ok' on the first request" do
+      get '/'
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to eq('ok')
+    end
+    it "should give a 429 status code and NOT return 'ok' when we excede a threshold in a given window" do
+      time_zero = DateTime.now
+
+      # Perform the complete request LOAD_LIMIT times
+      LOAD_LIMIT.times do
+        get '/'
+      end
+
+      elapsed_time = DateTime.now - time_zero
+
+      # once more to actually exceed the limiter
+      get '/'
+
+      # this is just in case the suite was frozen or took longer than the window to run
+      expect(elapsed_time).to be_between(0, DEFAULT_WINDOW)
+      # TODO: change to a more concrete assertion.
+
+      expect(last_response.status).to eq(429)
+      expect(last_response.body).to_not eq('ok')
+    end
+
+    it "should give a 200 OK if we've been previously limited but no longer are" do
+      requests = build_requests(LOAD_LIMIT, proc { DateTime.now - DEFAULT_WINDOW })
+      @redis.set 'requests', requests.to_json
+
+      get '/'
+
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to eq('ok')
+    end
+
+    it 'should insert requests with a sane timestamp' do
+      time_start = DateTime.now
+      sleep 0.01 # our timestamp comparison is only down to the milisecond. lets make sure this never affects our tests
+      get '/'
+      time_end = DateTime.now
+
+      requests = JSON.parse(@redis.get('requests') || '[]')
+      expect(requests.length).to eq(1) # we definitely should only have one record right now
+      expect(DateTime.iso8601(requests.first['timestamp'])).to be_between(time_start, time_end)
+    end
+  end
+  describe 'components' do
     it 'when blocking a request, should return the right amount of time until the oldest historic successful request expires' do
       requests = build_requests
       @redis.set 'requests', requests.to_json
 
-      time_start = Time.now
-      sleep 0.01 # ruby timestamp comparison is only down to the milisecond. lets make sure this never affects our tests
+      time_start = DateTime.now
+      sleep 0.01 # our timestamp comparison is only down to the milisecond. lets make sure this never affects our tests
       get '/'
-      time_end = Time.now
+      time_end = DateTime.now
 
       time_elapsed = time_end - time_start
 
       # We want to report in seconds rounded up, so round down our elapsed time
       expected_wait = DEFAULT_WINDOW - time_elapsed.floor
 
-        expect(last_response.status).to eq(429)
+      expect(last_response.status).to eq(429)
       expect(extract_int(last_response.body)).to be_within(time_elapsed).of(expected_wait)
     end
 
@@ -75,7 +121,7 @@ describe Rack::Limiter do
 
   describe 'Smoothing' do
     # High level behaviour test. # TODO refine this into a less vague test case
-    it "should smooth request limiting over a small window and not allow exhaustion in the first  ia 429 status code and NOT returns 'ok' when we excede a threshold in a given window"
+    it 'should smooth request limiting over a small window and not allow exhaustion in the first second for long windows'
   end
 end
 

@@ -1,16 +1,18 @@
+# frozen_string_literal: true
+
 require_relative 'boot'
 
-require "rails"
+require 'rails'
 # Pick the frameworks you want:
 # require "active_model/railtie"
-require "active_job/railtie"
-# require "active_record/railtie"
-require "action_controller/railtie"
-require "action_mailer/railtie"
-require "action_view/railtie"
+# require 'active_job/railtie'
+require 'active_record/railtie' # due to rails bugs, rails won't load without half of these even if unused.
+require 'action_controller/railtie'
+require 'action_mailer/railtie'
+require 'action_view/railtie'
 # require "action_cable/engine"
 # require "sprockets/railtie"
-require "rails/test_unit/railtie"
+require 'rails/test_unit/railtie'
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -31,5 +33,7 @@ module Slomo
     config.api_only = true
 
     config.autoload_paths << Rails.root.join('lib') # Rails 5 apparently no longer autoloads your lib directory
+    require "#{Rails.root}/lib/rack/limiter" # Because of the new load order, this goes here until I've fully investigated the new best practices.
+    config.middleware.use Rack::Limiter # load our middleware
   end
 end
